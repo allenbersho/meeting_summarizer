@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeetingSummarizer AI - Executive Meeting Insights</title>
+    <meta name="description" content="AI-Powered Meeting Audio Transcription and Executive Action Item Generator.">
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="22"></line>
+                        <line x1="8" y1="22" x2="16" y2="22"></line>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>MeetingSummarizer<span>AI</span></h1>
+                    <p class="subtitle">Whisper ASR & Executive Insights Engine</p>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <div class="status-indicator" id="statusBadge">
+                    <span class="status-dot"></span>
+                    <span id="statusText">System Ready</span>
+                </div>
+                <button id="toggleHistoryBtn" class="btn btn-secondary btn-sm" title="View Saved Summaries">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>History</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+        
+        <!-- Audio Upload Card Section -->
+        <section class="upload-section card">
+            <div class="card-header">
+                <h2>Upload Meeting Audio</h2>
+                <p>Select or drag & drop audio recordings (.mp3, .wav, .m4a, .webm, .ogg)</p>
+            </div>
+            
+            <div class="upload-dropzone" id="dropzone">
+                <input type="file" id="audioFileInput" accept=".mp3,.wav,.m4a,.webm,.ogg,.flac" hidden>
+                
+                <div class="dropzone-content" id="dropzoneContent">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h3>Drag & Drop meeting audio file here</h3>
+                    <p class="file-hint">Supported formats: MP3, WAV, M4A, WEBM, OGG (Max 35 MB)</p>
+                    <button class="btn btn-primary" id="selectFileBtn" type="button">Browse Audio File</button>
+                </div>
+
+                <!-- Selected File Display -->
+                <div class="selected-file-info hidden" id="selectedFileInfo">
+                    <div class="file-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                    </div>
+                    <div class="file-details">
+                        <h4 id="fileName">meeting_recording.mp3</h4>
+                        <span id="fileSize">0 MB</span>
+                        <audio id="audioPreview" controls></audio>
+                    </div>
+                    <button class="btn-icon" id="removeFileBtn" title="Remove File">&times;</button>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="upload-actions">
+                <button id="processBtn" class="btn btn-accent btn-lg" disabled>
+                    <span class="btn-text">Transcribe & Summarize</span>
+                    <span class="spinner hidden" id="processSpinner"></span>
+                </button>
+            </div>
+
+            <!-- Progress & Status Banner -->
+            <div id="progressBanner" class="progress-banner hidden">
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <div class="progress-status">
+                    <span id="progressStepText">Processing audio file...</span>
+                    <span id="progressTimer">00:00</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Dashboard Section -->
+        <section class="results-section hidden" id="resultsSection">
+            <div class="results-header card">
+                <div class="results-meta">
+                    <span class="badge badge-accent" id="resMetaId">ID: summary_01</span>
+                    <h2 id="resMetaFilename">Meeting Recording</h2>
+                    <span class="meta-date" id="resMetaDate">Processed: Aug 20, 2026</span>
+                </div>
+                <div class="results-actions">
+                    <button id="exportJsonBtn" class="btn btn-secondary btn-sm">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Export JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Split Layout -->
+            <div class="dashboard-grid">
+                
+                <!-- Left Column: Transcript Panel -->
+                <div class="dashboard-card card transcript-card">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h3>Full Transcript</h3>
+                            <span class="word-count" id="transcriptWordCount">0 words</span>
+                        </div>
+                        <div class="transcript-controls">
+                            <input type="text" id="transcriptSearch" placeholder="Search transcript..." class="search-input">
+                            <button id="copyTranscriptBtn" class="btn btn-icon-text btn-sm" title="Copy Transcript">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body scrollable">
+                        <div id="transcriptBox" class="transcript-text">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Executive Summary & Action Items Panel -->
+                <div class="dashboard-card card summary-card">
+                    
+                    <!-- Tabs Header -->
+                    <div class="card-tabs">
+                        <button class="tab-btn active" data-tab="tabOverview">Executive Summary</button>
+                        <button class="tab-btn" data-tab="tabActionItems">
+                            Action Items <span class="badge badge-pill" id="actionItemsBadge">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Tab Content 1: Executive Summary -->
+                    <div id="tabOverview" class="tab-content active scrollable">
+                        
+                        <!-- Overview Card -->
+                        <div class="summary-box">
+                            <h4 class="box-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="21" y1="10" x2="3" y2="10"></line>
+                                    <line x1="21" y1="6" x2="3" y2="6"></line>
+                                    <line x1="21" y1="14" x2="3" y2="14"></line>
+                                    <line x1="21" y1="18" x2="3" y2="18"></line>
+                                </svg>
+                                Meeting Overview
+                            </h4>
+                            <p id="overviewText" class="overview-paragraph">
+                                <!-- Populated dynamically -->
+                            </p>
+                        </div>
+
+                        <!-- Key Decisions -->
+                        <div class="summary-box">
+                            <h4 class="box-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Key Decisions
+                            </h4>
+                            <ul id="keyDecisionsList" class="decisions-list">
+                                <!-- Populated dynamically -->
+                            </ul>
+                        </div>
+
+                        <!-- Main Discussion Topics -->
+                        <div class="summary-box">
+                            <h4 class="box-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                Discussion Topics
+                            </h4>
+                            <div id="keyTopicsTags" class="topics-tags">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Tab Content 2: Action Items -->
+                    <div id="tabActionItems" class="tab-content scrollable">
+                        <div class="action-items-header">
+                            <h4>Action-Oriented Tasks</h4>
+                            <p>Check off completed tasks during post-meeting review</p>
+                        </div>
+                        <div id="actionItemsList" class="action-items-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Side Drawer: History -->
+    <div id="historyDrawer" class="drawer">
+        <div class="drawer-overlay" id="drawerOverlay"></div>
+        <div class="drawer-content">
+            <div class="drawer-header">
+                <h3>Meeting History</h3>
+                <button class="btn-icon" id="closeHistoryBtn">&times;</button>
+            </div>
+            <div class="drawer-body scrollable" id="historyList">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Popup -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer class="app-footer">
+        <p>&copy; 2026 MeetingSummarizer AI. Native Python & Vanilla JS Stack.</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
