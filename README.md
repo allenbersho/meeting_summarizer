@@ -8,9 +8,10 @@ The application is built with a minimal dependency approach using Python (FastAP
 
 ![Meeting Summarizer Dashboard](docs/ui3.png)
 
-![Meeting Summarizer Results and Action Items](docs/ui2.png)
+
 
 ![Meeting Summarizer audio upload](docs/ui1.png)
+![Meeting Summarizer Results and Action Items](docs/ui2.png)
 
 ## Overview & Architecture
 
