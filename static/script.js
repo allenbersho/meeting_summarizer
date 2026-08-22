@@ -1,10 +1,10 @@
 /**
- * MeetingSummarizer AI - Vanilla JavaScript Frontend Core
- * Handles File Uploads, Async API Fetching, DOM Rendering, & Toast Alerts
+ * MeetingSummarizer AI — Workspace Frontend
+ * Handles file upload, async summarization, panel navigation, and rendering.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Element References ---
+    // --- DOM References ---
     const dropzone = document.getElementById('dropzone');
     const audioFileInput = document.getElementById('audioFileInput');
     const selectFileBtn = document.getElementById('selectFileBtn');
@@ -16,13 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const removeFileBtn = document.getElementById('removeFileBtn');
 
     const processBtn = document.getElementById('processBtn');
-    const processSpinner = document.getElementById('processSpinner');
     const progressBanner = document.getElementById('progressBanner');
     const progressBar = document.getElementById('progressBar');
     const progressStepText = document.getElementById('progressStepText');
     const progressTimer = document.getElementById('progressTimer');
+    const statusEyebrow = document.getElementById('statusEyebrow');
 
-    const resultsSection = document.getElementById('resultsSection');
+    const uploadView = document.getElementById('uploadView');
+    const documentView = document.getElementById('documentView');
+    const newMeetingBtn = document.getElementById('newMeetingBtn');
+
     const resMetaId = document.getElementById('resMetaId');
     const resMetaFilename = document.getElementById('resMetaFilename');
     const resMetaDate = document.getElementById('resMetaDate');
@@ -37,58 +40,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyDecisionsList = document.getElementById('keyDecisionsList');
     const keyTopicsTags = document.getElementById('keyTopicsTags');
 
+    const actionEmptyState = document.getElementById('actionEmptyState');
+    const actionLoadedContent = document.getElementById('actionLoadedContent');
     const actionItemsList = document.getElementById('actionItemsList');
     const actionItemsBadge = document.getElementById('actionItemsBadge');
+    const actionPanelFooter = document.getElementById('actionPanelFooter');
+    const actionProgressText = document.getElementById('actionProgressText');
+    const actionProgressFill = document.getElementById('actionProgressFill');
+    const priorityChips = document.getElementById('priorityChips');
+    const railActionsCount = document.getElementById('railActionsCount');
 
-    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
-    const historyDrawer = document.getElementById('historyDrawer');
-    const closeHistoryBtn = document.getElementById('closeHistoryBtn');
-    const drawerOverlay = document.getElementById('drawerOverlay');
     const historyList = document.getElementById('historyList');
+    const historyEmptyState = document.getElementById('historyEmptyState');
+    const historySearchInput = document.getElementById('historySearchInput');
+    const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+
+    const railUploadBtn = document.getElementById('railUploadBtn');
+    const railHistoryBtn = document.getElementById('railHistoryBtn');
+    const railActionsBtn = document.getElementById('railActionsBtn');
+    const historyPanel = document.getElementById('historyPanel');
+    const actionPanel = document.getElementById('actionPanel');
+    const panelScrim = document.getElementById('panelScrim');
 
     const toastContainer = document.getElementById('toastContainer');
-    const statusText = document.getElementById('statusText');
 
-    // --- State Variables ---
+    // --- State ---
     let selectedFile = null;
     let currentSummaryData = null;
+    let historyCache = [];
     let timerInterval = null;
     let secondsElapsed = 0;
+    let activePriorityFilter = 'all';
 
     const MAX_SIZE_MB = 35;
     const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'm4a', 'webm', 'ogg', 'flac'];
+    const isMobile = () => window.matchMedia('(max-width: 1180px)').matches;
 
-    // --- Event Listeners: File Upload & Drag-and-Drop ---
+    // ==========================================================================
+    // File selection & drag/drop
+    // ==========================================================================
     selectFileBtn.addEventListener('click', () => audioFileInput.click());
 
     audioFileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-            handleFileSelection(e.target.files[0]);
-        }
+        if (e.target.files && e.target.files[0]) handleFileSelection(e.target.files[0]);
     });
 
-    // Drag and Drop Events
     ['dragenter', 'dragover'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             dropzone.classList.add('dragover');
         });
     });
-
     ['dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             dropzone.classList.remove('dragover');
         });
     });
-
     dropzone.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
-        if (dt.files && dt.files[0]) {
-            handleFileSelection(dt.files[0]);
-        }
+        if (dt.files && dt.files[0]) handleFileSelection(dt.files[0]);
     });
 
     removeFileBtn.addEventListener('click', (e) => {
@@ -98,30 +109,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleFileSelection(file) {
         const ext = file.name.split('.').pop().toLowerCase();
-        
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
             showToast(`Invalid audio format '.${ext}'. Please choose MP3, WAV, M4A, WEBM, or OGG.`, 'error');
             return;
         }
-
         const sizeInMB = file.size / (1024 * 1024);
         if (sizeInMB > MAX_SIZE_MB) {
-            showToast(`File size (${sizeInMB.toFixed(1)} MB) exceeds maximum limit of ${MAX_SIZE_MB} MB.`, 'error');
+            showToast(`File size (${sizeInMB.toFixed(1)} MB) exceeds the ${MAX_SIZE_MB} MB limit.`, 'error');
             return;
         }
 
         selectedFile = file;
         fileName.textContent = file.name;
         fileSize.textContent = `${sizeInMB.toFixed(2)} MB`;
-
-        // Create Object URL for native audio player preview
-        const objectUrl = URL.createObjectURL(file);
-        audioPreview.src = objectUrl;
+        audioPreview.src = URL.createObjectURL(file);
 
         dropzoneContent.classList.add('hidden');
         selectedFileInfo.classList.remove('hidden');
         processBtn.disabled = false;
-        
+
         showToast('Audio file loaded successfully.', 'success');
     }
 
@@ -134,25 +140,60 @@ document.addEventListener('DOMContentLoaded', () => {
         processBtn.disabled = true;
     }
 
-    // --- Tab Switching Logic ---
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-            
-            tabBtns.forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    // ==========================================================================
+    // Panel navigation (rail buttons)
+    // ==========================================================================
+    function setRailActive(btn) {
+        [railUploadBtn, railHistoryBtn, railActionsBtn].forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+    }
 
-            btn.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-        });
+    function openPanel(panel) {
+        panel.classList.add('open');
+        panelScrim.classList.add('open');
+    }
+    function closeAllPanels() {
+        historyPanel.classList.remove('open');
+        actionPanel.classList.remove('open');
+        panelScrim.classList.remove('open');
+    }
+    panelScrim.addEventListener('click', closeAllPanels);
+
+    railUploadBtn.addEventListener('click', () => {
+        setRailActive(railUploadBtn);
+        closeAllPanels();
+        showView(currentSummaryData ? documentView : uploadView);
     });
 
-    // --- Async Upload & Summarization Flow ---
+    railHistoryBtn.addEventListener('click', () => {
+        if (isMobile()) { openPanel(historyPanel); }
+        else { setRailActive(railHistoryBtn); }
+    });
+
+    railActionsBtn.addEventListener('click', () => {
+        if (isMobile()) { openPanel(actionPanel); }
+        else { setRailActive(railActionsBtn); }
+    });
+
+    function showView(view) {
+        [uploadView, documentView].forEach(v => v.classList.remove('active'));
+        view.classList.add('active');
+    }
+
+    newMeetingBtn.addEventListener('click', () => {
+        currentSummaryData = null;
+        resetFileSelection();
+        showView(uploadView);
+        setRailActive(railUploadBtn);
+        document.querySelectorAll('.history-card').forEach(c => c.classList.remove('selected'));
+    });
+
+    // ==========================================================================
+    // Processing flow
+    // ==========================================================================
     processBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
 
-        // UI Loading State
         setProcessingState(true);
         startTimer();
 
@@ -162,28 +203,27 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             updateProgress(20, 'Uploading audio file to server...');
 
-            const response = await fetch('/api/summarize', {
-                method: 'POST',
-                body: formData
-            });
+            const response = await fetch('/api/summarize', { method: 'POST', body: formData });
 
             updateProgress(60, 'Transcribing audio with Whisper ASR...');
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Server Error' }));
-                throw new Error(errorData.detail || `HTTP Error ${response.status}`);
+                const errorData = await response.json().catch(() => ({ detail: 'Server error' }));
+                throw new Error(errorData.detail || `HTTP error ${response.status}`);
             }
 
-            updateProgress(85, 'Extracting key insights and action items with LLM...');
+            updateProgress(85, 'Extracting insights and action items...');
 
             const data = await response.json();
             currentSummaryData = data;
 
             updateProgress(100, 'Complete!');
-            
-            // Render Results
+
             renderResults(data);
-            showToast('Meeting processed & summarized successfully!', 'success');
+            prependHistoryItem(data);
+            showView(documentView);
+            setRailActive(null);
+            showToast('Meeting processed and summarized successfully!', 'success');
 
         } catch (err) {
             console.error('Error during summarization:', err);
@@ -197,19 +237,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function setProcessingState(isProcessing) {
         processBtn.disabled = isProcessing;
         if (isProcessing) {
-            processSpinner.classList.remove('hidden');
             progressBanner.classList.remove('hidden');
-            statusText.textContent = 'Processing Audio...';
+            statusEyebrow.textContent = 'Processing audio…';
         } else {
-            processSpinner.classList.add('hidden');
             progressBanner.classList.add('hidden');
-            statusText.textContent = 'System Ready';
+            statusEyebrow.textContent = 'System ready';
         }
     }
 
     function updateProgress(percent, text) {
         progressBar.style.width = `${percent}%`;
-        progressStepText.textContent = text;
+        progressStepText.firstChild.textContent = text + ' ';
     }
 
     function startTimer() {
@@ -222,31 +260,26 @@ document.addEventListener('DOMContentLoaded', () => {
             progressTimer.textContent = `${mins}:${secs}`;
         }, 1000);
     }
+    function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
 
-    function stopTimer() {
-        if (timerInterval) clearInterval(timerInterval);
-    }
-
-    // --- Render Results to DOM ---
+    // ==========================================================================
+    // Render results
+    // ==========================================================================
     function renderResults(data) {
-        resultsSection.classList.remove('hidden');
-
-        // Meta Header
         resMetaId.textContent = `ID: ${data.id || 'N/A'}`;
         resMetaFilename.textContent = data.filename || 'Meeting Recording';
         resMetaDate.textContent = data.created_at ? `Processed: ${new Date(data.created_at).toLocaleDateString()}` : '';
 
-        // 1. Render Transcript
+        // Transcript
         const rawTranscript = data.transcript || '';
         transcriptBox.textContent = rawTranscript;
         const words = rawTranscript.trim().split(/\s+/).filter(Boolean).length;
         transcriptWordCount.textContent = `${words} words`;
 
-        // 2. Render Executive Summary
+        // Executive summary
         const summary = data.summary || {};
         overviewText.textContent = summary.overview || 'No overview generated.';
 
-        // Key Decisions List
         keyDecisionsList.innerHTML = '';
         const decisions = summary.key_decisions || [];
         if (decisions.length === 0) {
@@ -259,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Discussion Topics Tags
         keyTopicsTags.innerHTML = '';
         const topics = summary.key_topics || [];
         if (topics.length === 0) {
@@ -273,73 +305,111 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // 3. Render Action Items
+        // Action items
         renderActionItems(data.action_items || []);
-
-        // Scroll smooth to results
-        resultsSection.scrollIntoView({ behavior: 'smooth' });
     }
 
+    let currentActionItems = [];
+
     function renderActionItems(items) {
-        actionItemsList.innerHTML = '';
+        currentActionItems = items;
         actionItemsBadge.textContent = items.length;
+        railActionsCount.textContent = items.length;
+        railActionsCount.classList.toggle('hidden', items.length === 0);
 
         if (items.length === 0) {
-            actionItemsList.innerHTML = '<div class="action-item-card"><p>No actionable tasks identified in this meeting.</p></div>';
+            actionEmptyState.classList.remove('hidden');
+            actionLoadedContent.classList.add('hidden');
+            actionPanelFooter.classList.add('hidden');
             return;
         }
 
-        items.forEach((item, index) => {
-            const card = document.createElement('div');
-            card.className = 'action-item-card';
+        actionEmptyState.classList.add('hidden');
+        actionLoadedContent.classList.remove('hidden');
+        actionPanelFooter.classList.remove('hidden');
 
-            const priorityClass = getPriorityClass(item.priority);
+        activePriorityFilter = 'all';
+        priorityChips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.priority === 'all'));
 
-            card.innerHTML = `
-                <input type="checkbox" class="checkbox-custom" id="chk_${index}">
-                <div class="task-content">
-                    <p class="task-text">${escapeHtml(item.task)}</p>
-                    <div class="task-meta">
-                        <span class="assignee-badge">👤 ${escapeHtml(item.assignee || 'Unassigned')}</span>
-                        <span class="priority-badge ${priorityClass}">${escapeHtml(item.priority || 'Medium')}</span>
+        drawActionItems();
+    }
+
+    function drawActionItems() {
+        actionItemsList.innerHTML = '';
+        const filtered = activePriorityFilter === 'all'
+            ? currentActionItems
+            : currentActionItems.filter(item => (item.priority || 'medium').toLowerCase().includes(activePriorityFilter));
+
+        if (filtered.length === 0) {
+            actionItemsList.innerHTML = '<div class="action-item-card"><div class="task-content"><p class="task-text">No tasks at this priority.</p></div></div>';
+        } else {
+            filtered.forEach((item, index) => {
+                const card = document.createElement('div');
+                const priorityKey = getPriorityKey(item.priority);
+                card.className = 'action-item-card';
+                card.dataset.priority = priorityKey;
+
+                card.innerHTML = `
+                    <input type="checkbox" class="checkbox-custom" id="chk_${index}">
+                    <div class="task-content">
+                        <p class="task-text">${escapeHtml(item.task)}</p>
+                        <div class="task-meta">
+                            <span class="assignee-badge">${escapeHtml(item.assignee || 'Unassigned')}</span>
+                            <span class="priority-badge priority-${priorityKey}">${escapeHtml((item.priority || 'Medium').toUpperCase())}</span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            const checkbox = card.querySelector('.checkbox-custom');
-            checkbox.addEventListener('change', () => {
-                card.classList.toggle('completed', checkbox.checked);
+                const checkbox = card.querySelector('.checkbox-custom');
+                checkbox.addEventListener('change', () => {
+                    card.classList.toggle('completed', checkbox.checked);
+                    updateActionProgress();
+                });
+
+                actionItemsList.appendChild(card);
             });
-
-            actionItemsList.appendChild(card);
-        });
+        }
+        updateActionProgress();
     }
 
-    function getPriorityClass(priority) {
-        if (!priority) return 'priority-medium';
+    function updateActionProgress() {
+        const total = actionItemsList.querySelectorAll('.checkbox-custom').length;
+        const done = actionItemsList.querySelectorAll('.checkbox-custom:checked').length;
+        actionProgressText.textContent = `${done} of ${total}`;
+        actionProgressFill.style.width = total ? `${(done / total) * 100}%` : '0%';
+    }
+
+    priorityChips.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        activePriorityFilter = chip.dataset.priority;
+        priorityChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        drawActionItems();
+    });
+
+    function getPriorityKey(priority) {
+        if (!priority) return 'medium';
         const p = priority.toLowerCase();
-        if (p.includes('high')) return 'priority-high';
-        if (p.includes('low')) return 'priority-low';
-        return 'priority-medium';
+        if (p.includes('high')) return 'high';
+        if (p.includes('low')) return 'low';
+        return 'medium';
     }
 
-    // --- Search Transcript ---
+    // ==========================================================================
+    // Transcript search & copy
+    // ==========================================================================
     transcriptSearch.addEventListener('input', (e) => {
         const query = e.target.value.trim().toLowerCase();
         if (!currentSummaryData || !currentSummaryData.transcript) return;
-
         const text = currentSummaryData.transcript;
-        if (!query) {
-            transcriptBox.textContent = text;
-            return;
-        }
+
+        if (!query) { transcriptBox.textContent = text; return; }
 
         const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-        const highlighted = text.replace(regex, '<mark>$1</mark>');
-        transcriptBox.innerHTML = highlighted;
+        transcriptBox.innerHTML = escapeHtml(text).replace(regex, '<mark>$1</mark>');
     });
 
-    // --- Copy Transcript Button ---
     copyTranscriptBtn.addEventListener('click', () => {
         if (!currentSummaryData || !currentSummaryData.transcript) return;
         navigator.clipboard.writeText(currentSummaryData.transcript)
@@ -347,7 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(() => showToast('Failed to copy transcript.', 'error'));
     });
 
-    // --- Export JSON Button ---
+    // ==========================================================================
+    // Export JSON
+    // ==========================================================================
     exportJsonBtn.addEventListener('click', () => {
         if (!currentSummaryData) return;
         const jsonStr = JSON.stringify(currentSummaryData, null, 2);
@@ -360,61 +432,76 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     });
 
-    // --- Side Drawer: Meeting History ---
-    toggleHistoryBtn.addEventListener('click', openHistoryDrawer);
-    closeHistoryBtn.addEventListener('click', closeHistoryDrawer);
-    drawerOverlay.addEventListener('click', closeHistoryDrawer);
-
-    async function openHistoryDrawer() {
-        historyDrawer.classList.add('open');
-        historyList.innerHTML = '<p style="color: var(--text-muted);">Loading past meetings...</p>';
-
+    // ==========================================================================
+    // Meeting history (persistent panel, not a drawer)
+    // ==========================================================================
+    async function loadHistory() {
+        historyList.innerHTML = '<div class="panel-empty">Loading meetings…</div>';
         try {
             const res = await fetch('/api/history');
             if (!res.ok) throw new Error('Failed to fetch history');
             const data = await res.json();
-            
-            historyList.innerHTML = '';
-            if (data.history.length === 0) {
-                historyList.innerHTML = '<p style="color: var(--text-muted);">No saved meeting summaries found.</p>';
-                return;
-            }
-
-            data.history.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'history-card';
-                card.innerHTML = `
-                    <div class="history-title">${escapeHtml(item.filename)}</div>
-                    <div class="history-date">${item.created_at ? new Date(item.created_at).toLocaleString() : 'Past Session'}</div>
-                    <div class="history-snippet">${escapeHtml(item.overview || 'Click to view summary')}</div>
-                `;
-                card.addEventListener('click', () => loadSummaryById(item.id));
-                historyList.appendChild(card);
-            });
+            historyCache = data.history || [];
+            drawHistory(historyCache);
         } catch (err) {
-            historyList.innerHTML = '<p style="color: var(--danger-color);">Error loading history.</p>';
+            historyList.innerHTML = '<div class="panel-empty">Couldn\'t load meeting history.</div>';
         }
     }
 
-    function closeHistoryDrawer() {
-        historyDrawer.classList.remove('open');
+    function drawHistory(items) {
+        historyList.innerHTML = '';
+        if (!items || items.length === 0) {
+            historyList.innerHTML = '<div class="panel-empty">No processed meetings yet. Upload a recording to get started.</div>';
+            return;
+        }
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.dataset.id = item.id;
+            if (currentSummaryData && currentSummaryData.id === item.id) card.classList.add('selected');
+            card.innerHTML = `
+                <div class="history-title">${escapeHtml(item.filename)}</div>
+                <div class="history-date">${item.created_at ? new Date(item.created_at).toLocaleString() : 'Past session'}</div>
+                <div class="history-snippet">${escapeHtml(item.overview || 'Click to view summary')}</div>
+            `;
+            card.addEventListener('click', () => loadSummaryById(item.id));
+            historyList.appendChild(card);
+        });
     }
+
+    function prependHistoryItem(data) {
+        historyCache = [{ id: data.id, filename: data.filename, created_at: data.created_at, overview: data.summary && data.summary.overview }, ...historyCache];
+        drawHistory(historyCache);
+    }
+
+    historySearchInput.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (!q) { drawHistory(historyCache); return; }
+        drawHistory(historyCache.filter(item => (item.filename || '').toLowerCase().includes(q)));
+    });
+
+    refreshHistoryBtn.addEventListener('click', loadHistory);
 
     async function loadSummaryById(id) {
         try {
-            closeHistoryDrawer();
             const res = await fetch(`/api/summary/${id}`);
             if (!res.ok) throw new Error('Failed to load summary');
             const data = await res.json();
             currentSummaryData = data;
             renderResults(data);
+            showView(documentView);
+            setRailActive(null);
+            document.querySelectorAll('.history-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
+            if (isMobile()) closeAllPanels();
             showToast(`Loaded summary '${id}'`, 'success');
         } catch (err) {
             showToast(err.message, 'error');
         }
     }
 
-    // --- Toast Alert Utility ---
+    // ==========================================================================
+    // Toasts
+    // ==========================================================================
     function showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -429,15 +516,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     }
 
-    // Utility Helpers
+    // ==========================================================================
+    // Utility helpers
+    // ==========================================================================
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>"']/g, (m) => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
         })[m]);
     }
-
     function escapeRegExp(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
+
+    // --- Init ---
+    loadHistory();
 });

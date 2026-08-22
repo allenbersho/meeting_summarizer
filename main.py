@@ -428,7 +428,7 @@ def serve_index():
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Frontend index.html file missing in static directory."
         )
-    return FileResponse(index_file)
+    return FileResponse(index_file, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 if __name__ == "__main__":
     import uvicorn
