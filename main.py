@@ -75,11 +75,11 @@ def get_active_provider() -> str:
     Determines active provider: 'gemini', 'openai', or 'demo'.
     """
     gemini_key = os.getenv("GEMINI_API_KEY")
-    if gemini_key and gemini_key.strip() and gemini_key != "your_free_gemini_api_key_here":
+    if gemini_key and gemini_key.strip() and gemini_key != "api":
         return "gemini"
     
     openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key and openai_key.strip() and openai_key != "your_openai_api_key_here":
+    if openai_key and openai_key.strip() and openai_key != "api":
         return "openai"
 
     return "demo"
