@@ -87,7 +87,7 @@ pip-wheel-metadata/
 *.m4a
 
 # Ignore generated videos everywhere
-*.mp4
+# *.mp4
 
 # But keep documentation/demo videos
 # !docs/**/*.mp4
